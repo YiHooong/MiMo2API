@@ -6,10 +6,9 @@ import json
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Header, Request
 from fastapi.responses import StreamingResponse, JSONResponse
-from .models import (
-    OpenAIRequest, OpenAIResponse, OpenAIChoice, OpenAIMessage,
-    OpenAIDelta, OpenAIUsage, ParseCurlRequest, TestAccountRequest
-)
+from .models import (OpenAIRequest, OpenAIResponse, OpenAIChoice,
+                     OpenAIMessage, OpenAIDelta, OpenAIUsage, ParseCurlRequest,
+                     TestAccountRequest)
 from .config import config_manager, MimoAccount
 from .mimo_client import MimoClient
 from .utils import parse_curl, build_query_from_messages
@@ -28,20 +27,24 @@ def validate_api_key(authorization: Optional[str]) -> bool:
 
 
 @router.post("/v1/chat/completions")
-async def chat_completions(
-    request: OpenAIRequest,
-    authorization: Optional[str] = Header(None)
-):
+async def chat_completions(request: OpenAIRequest,
+                           authorization: Optional[str] = Header(None)):
     """OpenAI兼容的聊天接口"""
 
     # 验证API Key
     if not validate_api_key(authorization):
-        raise HTTPException(status_code=401, detail={"error": {"message": "invalid api key"}})
+        raise HTTPException(status_code=401,
+                            detail={"error": {
+                                "message": "invalid api key"
+                            }})
 
     # 获取下一个Mimo账号
     account = config_manager.get_next_account()
     if not account:
-        raise HTTPException(status_code=503, detail={"error": {"message": "no mimo account"}})
+        raise HTTPException(status_code=503,
+                            detail={"error": {
+                                "message": "no mimo account"
+                            }})
 
     # 构建查询字符串
     query = build_query_from_messages(request.messages)
@@ -54,10 +57,9 @@ async def chat_completions(
 
     # 流式响应
     if request.stream:
-        return StreamingResponse(
-            stream_response(client, query, thinking, request.model),
-            media_type="text/event-stream"
-        )
+        return StreamingResponse(stream_response(client, query, thinking,
+                                                 request.model),
+                                 media_type="text/event-stream")
 
     # 非流式响应
     try:
@@ -74,26 +76,28 @@ async def chat_completions(
             created=int(time.time()),
             model=request.model,
             choices=[
-                OpenAIChoice(
-                    index=0,
-                    message=OpenAIMessage(role="assistant", content=full_content),
-                    finish_reason="stop"
-                )
+                OpenAIChoice(index=0,
+                             message=OpenAIMessage(role="assistant",
+                                                   content=full_content),
+                             finish_reason="stop")
             ],
-            usage=OpenAIUsage(
-                prompt_tokens=usage.get("promptTokens", 0),
-                completion_tokens=usage.get("completionTokens", 0),
-                total_tokens=usage.get("promptTokens", 0) + usage.get("completionTokens", 0)
-            )
-        )
+            usage=OpenAIUsage(prompt_tokens=usage.get("promptTokens", 0),
+                              completion_tokens=usage.get(
+                                  "completionTokens", 0),
+                              total_tokens=usage.get("promptTokens", 0) +
+                              usage.get("completionTokens", 0)))
 
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": {"message": str(e)}})
+        raise HTTPException(status_code=500,
+                            detail={"error": {
+                                "message": str(e)
+                            }})
 
 
-async def stream_response(client: MimoClient, query: str, thinking: bool, model: str):
+async def stream_response(client: MimoClient, query: str, thinking: bool,
+                          model: str):
     """流式响应生成器"""
 
     msg_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
@@ -126,8 +130,11 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                                 object="chat.completion.chunk",
                                 created=int(time.time()),
                                 model=model,
-                                choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text[:idx]))]
-                            )
+                                choices=[
+                                    OpenAIChoice(
+                                        index=0,
+                                        delta=OpenAIDelta(content=text[:idx]))
+                                ])
                             yield f"data: {json.dumps(chunk.dict())}\n\n"
 
                         in_think = True
@@ -142,8 +149,11 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                             object="chat.completion.chunk",
                             created=int(time.time()),
                             model=model,
-                            choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=text[:safe]))]
-                        )
+                            choices=[
+                                OpenAIChoice(
+                                    index=0,
+                                    delta=OpenAIDelta(content=text[:safe]))
+                            ])
                         yield f"data: {json.dumps(chunk.dict())}\n\n"
                         text = text[safe:]
                     break
@@ -159,8 +169,11 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                                 object="chat.completion.chunk",
                                 created=int(time.time()),
                                 model=model,
-                                choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=text[:idx]))]
-                            )
+                                choices=[
+                                    OpenAIChoice(index=0,
+                                                 delta=OpenAIDelta(
+                                                     reasoning=text[:idx]))
+                                ])
                             yield f"data: {json.dumps(chunk.dict())}\n\n"
 
                         in_think = False
@@ -175,8 +188,11 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                             object="chat.completion.chunk",
                             created=int(time.time()),
                             model=model,
-                            choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=text[:safe]))]
-                        )
+                            choices=[
+                                OpenAIChoice(
+                                    index=0,
+                                    delta=OpenAIDelta(reasoning=text[:safe]))
+                            ])
                         yield f"data: {json.dumps(chunk.dict())}\n\n"
                         text = text[safe:]
                     break
@@ -191,26 +207,32 @@ async def stream_response(client: MimoClient, query: str, thinking: bool, model:
                     object="chat.completion.chunk",
                     created=int(time.time()),
                     model=model,
-                    choices=[OpenAIChoice(index=0, delta=OpenAIDelta(reasoning=buffer))]
-                )
+                    choices=[
+                        OpenAIChoice(index=0,
+                                     delta=OpenAIDelta(reasoning=buffer))
+                    ])
             else:
                 chunk = OpenAIResponse(
                     id=msg_id,
                     object="chat.completion.chunk",
                     created=int(time.time()),
                     model=model,
-                    choices=[OpenAIChoice(index=0, delta=OpenAIDelta(content=buffer))]
-                )
+                    choices=[
+                        OpenAIChoice(index=0,
+                                     delta=OpenAIDelta(content=buffer))
+                    ])
             yield f"data: {json.dumps(chunk.dict())}\n\n"
 
         # 发送结束标记
-        final_chunk = OpenAIResponse(
-            id=msg_id,
-            object="chat.completion.chunk",
-            created=int(time.time()),
-            model=model,
-            choices=[OpenAIChoice(index=0, delta=OpenAIDelta(), finish_reason="stop")]
-        )
+        final_chunk = OpenAIResponse(id=msg_id,
+                                     object="chat.completion.chunk",
+                                     created=int(time.time()),
+                                     model=model,
+                                     choices=[
+                                         OpenAIChoice(index=0,
+                                                      delta=OpenAIDelta(),
+                                                      finish_reason="stop")
+                                     ])
         yield f"data: {json.dumps(final_chunk.dict())}\n\n"
         yield "data: [DONE]\n\n"
 
@@ -249,11 +271,9 @@ async def parse_curl_command(request: ParseCurlRequest):
 async def test_account(request: TestAccountRequest):
     """测试账号有效性"""
     try:
-        account = MimoAccount(
-            service_token=request.service_token,
-            user_id=request.user_id,
-            xiaomichatbot_ph=request.xiaomichatbot_ph
-        )
+        account = MimoAccount(service_token=request.service_token,
+                              user_id=request.user_id,
+                              xiaomichatbot_ph=request.xiaomichatbot_ph)
 
         client = MimoClient(account)
         content, _, _ = await client.call_api("hi", False)
@@ -261,3 +281,72 @@ async def test_account(request: TestAccountRequest):
         return {"success": True, "response": content}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.get("/v1/models")
+async def list_models(authorization: Optional[str] = Header(None)):
+    """列出可用模型"""
+
+    # 验证API Key
+    if not validate_api_key(authorization):
+        raise HTTPException(status_code=401,
+                            detail={"error": {
+                                "message": "invalid api key"
+                            }})
+
+    # 返回固定的模型列表
+    return {
+        "data": [{
+            "created": 1774937422,
+            "id": "mimo-v2-flash-studio",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-studio-thinking",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-studio-search",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-studio-thinking-search",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-studio-search-thinking",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-thinking",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-search",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-thinking-search",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }, {
+            "created": 1774937422,
+            "id": "mimo-v2-flash-search-thinking",
+            "object": "model",
+            "owned_by": "xiaomi"
+        }],
+        "object":
+        "list"
+    }
