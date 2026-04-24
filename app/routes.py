@@ -293,7 +293,7 @@ async def list_models(authorization: Optional[str] = Header(None)):
                                 "message": "invalid api key"
                             }})
 
-    base_models = ["mimo-v2-flash-studio", "mimo-v2-pro"]
+    base_models = ["mimo-v2-flash-studio", "mimo-v2-pro, “mimo-v2.5-Pro", "mimo-v2.5"]
     # 生成所有变体 (thinking, search, thinking+search 等组合)
     model_variants = []
     for base_id in base_models:
